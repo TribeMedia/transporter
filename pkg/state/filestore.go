@@ -60,7 +60,7 @@ func (f *filestore) flushToDisk() error {
 
 func (f *filestore) Save(key, path string, msg *message.Msg) error {
 	f.states[key+"-"+path] = &msgState{Id: msg.IdAsString(), Timestamp: msg.Timestamp}
-	return f.flushToDisk()
+	return nil
 }
 
 func (f *filestore) Select(key, path string) (string, int64, error) {
