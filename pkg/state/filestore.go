@@ -53,5 +53,19 @@ func (f *filestore) Save(key, path string, msg *message.Msg) error {
 
 func (f *filestore) Select(key, path string) (string, int64, error) {
 	currentState := f.states[key+"-"+path]
+
+	if currentState == nil {
+		fh, err := os.Open(f.filename)
+		if err != nil {
+			return "", 0, err
+		}
+		states := make(map[string]*msgState)
+		dec := gob.NewDecoder(fh)
+		err = dec.Decode(&states)
+		if err != nil {
+			return "", 0, err
+		}
+		currentState = states[key+"-"+path]
+	}
 	return currentState.Id, currentState.Timestamp, nil
 }
