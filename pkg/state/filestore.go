@@ -5,13 +5,15 @@ import (
 	"encoding/gob"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/compose/transporter/pkg/message"
 )
 
 type filestore struct {
-	filename string
-	states   map[string]*msgState
+	filename    string
+	flushTicker *time.Ticker
+	states      map[string]*msgState
 }
 
 type msgState struct {
@@ -19,9 +21,18 @@ type msgState struct {
 	Timestamp int64
 }
 
-func NewFilestore(filename string) *filestore {
-	return &filestore{
-		filename: filename,
+func NewFilestore(filename string, interval time.Duration) *filestore {
+	filestore := &filestore{
+		filename:    filename,
+		flushTicker: time.NewTicker(interval),
+	}
+	go filestore.startFlusher()
+	return filestore
+}
+
+func (f *filestore) startFlusher() {
+	for _ = range f.flushTicker.C {
+		f.flushToDisk()
 	}
 }
 
