@@ -5,9 +5,16 @@ import (
 	"encoding/gob"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/compose/transporter/pkg/message"
+)
+
+// listen for signals, and send stops to the generator
+var (
+	chQuit = make(chan os.Signal)
 )
 
 type filestore struct {
@@ -28,6 +35,15 @@ func NewFilestore(filename string, interval time.Duration) *filestore {
 		states:      make(map[string]*msgState),
 	}
 	go filestore.startFlusher()
+	signal.Notify(chQuit, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		select {
+		case <-chQuit:
+			fmt.Println("Got signal, wrapping up")
+			filestore.flushTicker.Stop()
+			filestore.flushToDisk()
+		}
+	}()
 	return filestore
 }
 
