@@ -25,6 +25,7 @@ func NewFilestore(filename string, interval time.Duration) *filestore {
 	filestore := &filestore{
 		filename:    filename,
 		flushTicker: time.NewTicker(interval),
+		states:      make(map[string]*msgState),
 	}
 	go filestore.startFlusher()
 	return filestore
