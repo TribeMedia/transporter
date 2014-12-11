@@ -72,7 +72,11 @@ func (f *filestore) flushToDisk() error {
 }
 
 func (f *filestore) Save(path string, msg *message.Msg) error {
-	f.states[f.key+"-"+path] = &MsgState{Id: msg.IdAsString(), Timestamp: msg.Timestamp}
+	var id = ""
+	if msg.Id != nil {
+		id = msg.IdAsString()
+	}
+	f.states[f.key+"-"+path] = &MsgState{Id: id, Timestamp: msg.Timestamp}
 	return nil
 }
 
