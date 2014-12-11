@@ -4,10 +4,8 @@ import (
 	"errors"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/compose/transporter/pkg/pipe"
-	"github.com/compose/transporter/pkg/state"
 )
 
 // a random type that adaptorements the adaptor interface
