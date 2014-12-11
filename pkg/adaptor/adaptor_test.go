@@ -64,7 +64,7 @@ func TestCreateadaptor(t *testing.T) {
 		},
 	}
 	for _, v := range data {
-		adaptor, err := Createadaptor(v.kind, "a/b/c", v.extra, pipe.NewPipe(nil, "some name", state.NewFilestore("randomkey", "/tmp/transporter.state", 10*time.Second)))
+		adaptor, err := Createadaptor(v.kind, "a/b/c", v.extra, pipe.NewPipe(nil, "some name"))
 
 		if err != nil && err.Error() != v.err {
 			t.Errorf("\nexpected error: %v\ngot error: %v\n", v.err, err.Error())
