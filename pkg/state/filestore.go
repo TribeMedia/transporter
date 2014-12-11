@@ -29,7 +29,7 @@ type msgState struct {
 	Timestamp int64
 }
 
-func NewFilestore(key, filename string, interval time.Duration) *filestore {
+func NewFilestore(key, filename string, interval time.Duration) SessionStore {
 	filestore := &filestore{
 		key:         key,
 		filename:    filename,

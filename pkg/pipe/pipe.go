@@ -11,6 +11,7 @@ import (
 
 	"github.com/compose/transporter/pkg/events"
 	"github.com/compose/transporter/pkg/message"
+	"github.com/compose/transporter/pkg/state"
 )
 
 type messageChan chan *message.Msg
@@ -36,17 +37,20 @@ type Pipe struct {
 	path      string // the path of this pipe (for events and errors)
 	chStop    chan chan bool
 	listening bool
+
+	sessionStore state.SessionStore
 }
 
 // NewSourcePipe creates a new Pipe.  If the pipe that is passed in is nil, then this pipe will be treaded as a source pipe that just serves to emit messages.
 // Otherwise, the pipe returned will be created and chained from the last member of the Out slice of the parent.  This function has side effects, and will add
 // an Out channel to the pipe that is passed in
-func NewPipe(pipe *Pipe, path string) *Pipe {
+func NewPipe(pipe *Pipe, path string, sessionStore state.SessionStore) *Pipe {
 
 	p := &Pipe{
-		Out:    make([]messageChan, 0),
-		path:   path,
-		chStop: make(chan chan bool),
+		Out:          make([]messageChan, 0),
+		path:         path,
+		chStop:       make(chan chan bool),
+		sessionStore: sessionStore,
 	}
 
 	if pipe != nil {
@@ -95,6 +99,7 @@ func (m *Pipe) Listen(fn func(*message.Msg) (*message.Msg, error)) error {
 			} else {
 				m.MessageCount += 1 // update the count anyway
 			}
+			m.sessionStore.Save(m.path, msg)
 		case <-time.After(100 * time.Millisecond):
 			// NOP, just breath
 		}

@@ -6,6 +6,7 @@ import (
 
 	"github.com/compose/transporter/pkg/adaptor"
 	"github.com/compose/transporter/pkg/events"
+	"github.com/compose/transporter/pkg/state"
 )
 
 const (
@@ -34,7 +35,7 @@ type Pipeline struct {
 // pipeline.Run()
 func NewDefaultPipeline(source *Node, uri, key, pid string, interval time.Duration) (*Pipeline, error) {
 	emitter := events.HttpPostEmitter(uri, key, pid)
-	return NewPipeline(source, emitter, interval)
+	return NewPipeline(source, emitter, interval, state.NewFilestore(key, "/tmp/transporter.state", interval))
 }
 
 // NewPipeline creates a new Transporter Pipeline using the given tree of nodes, and Event Emitter
@@ -48,7 +49,7 @@ func NewDefaultPipeline(source *Node, uri, key, pid string, interval time.Durati
 // 	  os.Exit(1)
 //   }
 // pipeline.Run()
-func NewPipeline(source *Node, emitter events.Emitter, interval time.Duration) (*Pipeline, error) {
+func NewPipeline(source *Node, emitter events.Emitter, interval time.Duration, sessionStore state.SessionStore) (*Pipeline, error) {
 	pipeline := &Pipeline{
 		source:        source,
 		emitter:       emitter,
@@ -56,7 +57,7 @@ func NewPipeline(source *Node, emitter events.Emitter, interval time.Duration) (
 	}
 
 	// init the pipeline
-	err := pipeline.source.Init(interval)
+	err := pipeline.source.Init(interval, sessionStore)
 	if err != nil {
 		return pipeline, err
 	}

@@ -12,6 +12,7 @@ import (
 
 	"github.com/compose/transporter/pkg/adaptor"
 	"github.com/compose/transporter/pkg/pipe"
+	"github.com/compose/transporter/pkg/state"
 )
 
 // A Node is the basic building blocks of transporter pipelines.
@@ -113,12 +114,12 @@ func (n *Node) Add(node *Node) *Node {
 
 // Init sets up the node for action.  It creates a pipe and adaptor for this node,
 // and then recurses down the tree calling Init on each child
-func (n *Node) Init(interval time.Duration) (err error) {
+func (n *Node) Init(interval time.Duration, sessionStore state.SessionStore) (err error) {
 	path := n.Path()
 	if n.Parent == nil { // we don't have a parent, we're the source
-		n.pipe = pipe.NewPipe(nil, path)
+		n.pipe = pipe.NewPipe(nil, path, sessionStore)
 	} else { // we have a parent, so pass in the parent's pipe here
-		n.pipe = pipe.NewPipe(n.Parent.pipe, path)
+		n.pipe = pipe.NewPipe(n.Parent.pipe, path, sessionStore)
 	}
 
 	n.adaptor, err = adaptor.Createadaptor(n.Type, path, n.Extra, n.pipe)
@@ -127,7 +128,7 @@ func (n *Node) Init(interval time.Duration) (err error) {
 	}
 
 	for _, child := range n.Children {
-		err = child.Init(interval) // init each child
+		err = child.Init(interval, sessionStore) // init each child
 		if err != nil {
 			return err
 		}
