@@ -148,7 +148,9 @@ func (pipeline *Pipeline) startSessionSaver() {
 }
 
 func (pipeline *Pipeline) saveState(node *Node) {
-	pipeline.sessionStore.Save(node.Path(), node.pipe.LastKnownState)
+	if node.pipe.LastKnownState != nil {
+		pipeline.sessionStore.Save(node.Path(), node.pipe.LastKnownState)
+	}
 }
 
 // emit the metrics
