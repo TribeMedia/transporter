@@ -5,6 +5,6 @@ import (
 )
 
 type SessionStore interface {
-	Save(key, path string, msg *message.Msg) error
-	Select(key, path string, msg *message.Msg) error
+	Save(path string, msg *message.Msg) error
+	Select(path string, msg *message.Msg) error
 }

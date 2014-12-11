@@ -18,6 +18,7 @@ var (
 )
 
 type filestore struct {
+	key         string
 	filename    string
 	flushTicker *time.Ticker
 	states      map[string]*msgState
@@ -28,8 +29,9 @@ type msgState struct {
 	Timestamp int64
 }
 
-func NewFilestore(filename string, interval time.Duration) *filestore {
+func NewFilestore(key, filename string, interval time.Duration) *filestore {
 	filestore := &filestore{
+		key:         key,
 		filename:    filename,
 		flushTicker: time.NewTicker(interval),
 		states:      make(map[string]*msgState),
@@ -74,13 +76,13 @@ func (f *filestore) flushToDisk() error {
 	return nil
 }
 
-func (f *filestore) Save(key, path string, msg *message.Msg) error {
-	f.states[key+"-"+path] = &msgState{Id: msg.IdAsString(), Timestamp: msg.Timestamp}
+func (f *filestore) Save(path string, msg *message.Msg) error {
+	f.states[f.key+"-"+path] = &msgState{Id: msg.IdAsString(), Timestamp: msg.Timestamp}
 	return nil
 }
 
-func (f *filestore) Select(key, path string) (string, int64, error) {
-	currentState := f.states[key+"-"+path]
+func (f *filestore) Select(path string) (string, int64, error) {
+	currentState := f.states[f.key+"-"+path]
 
 	if currentState == nil {
 		fh, err := os.Open(f.filename)
@@ -93,7 +95,7 @@ func (f *filestore) Select(key, path string) (string, int64, error) {
 		if err != nil {
 			return "", 0, err
 		}
-		currentState = states[key+"-"+path]
+		currentState = states[f.key+"-"+path]
 	}
 	return currentState.Id, currentState.Timestamp, nil
 }
