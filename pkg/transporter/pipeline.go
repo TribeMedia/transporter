@@ -18,7 +18,9 @@ const (
 type Pipeline struct {
 	source        *Node
 	emitter       events.Emitter
+	sessionStore  state.SessionStore
 	metricsTicker *time.Ticker
+	sessionTicker *time.Ticker
 }
 
 // NewDefaultPipeline returns a new Transporter Pipeline with the given node tree, and
@@ -35,7 +37,8 @@ type Pipeline struct {
 // pipeline.Run()
 func NewDefaultPipeline(source *Node, uri, key, pid string, interval time.Duration) (*Pipeline, error) {
 	emitter := events.HttpPostEmitter(uri, key, pid)
-	return NewPipeline(source, emitter, interval, state.NewFilestore(key, "/tmp/transporter.state", interval))
+	sessionStore := state.NewFilestore(key, "/tmp/transporter.state", interval)
+	return NewPipeline(source, emitter, interval, sessionStore)
 }
 
 // NewPipeline creates a new Transporter Pipeline using the given tree of nodes, and Event Emitter
@@ -53,11 +56,13 @@ func NewPipeline(source *Node, emitter events.Emitter, interval time.Duration, s
 	pipeline := &Pipeline{
 		source:        source,
 		emitter:       emitter,
+		sessionStore:  sessionStore,
 		metricsTicker: time.NewTicker(interval),
+		sessionTicker: time.NewTicker(10 * time.Second),
 	}
 
 	// init the pipeline
-	err := pipeline.source.Init(interval, sessionStore)
+	err := pipeline.source.Init(interval)
 	if err != nil {
 		return pipeline, err
 	}
@@ -68,6 +73,7 @@ func NewPipeline(source *Node, emitter events.Emitter, interval time.Duration, s
 	// start the emitters
 	go pipeline.startErrorListener(source.pipe.Err)
 	go pipeline.startMetricsGatherer()
+	go pipeline.startSessionSaver()
 	pipeline.emitter.Start()
 
 	return pipeline, nil
@@ -84,6 +90,7 @@ func (pipeline *Pipeline) String() string {
 func (pipeline *Pipeline) Stop() {
 	pipeline.source.Stop()
 	pipeline.emitter.Stop()
+	pipeline.sessionTicker.Stop()
 	pipeline.metricsTicker.Stop()
 }
 
@@ -97,7 +104,8 @@ func (pipeline *Pipeline) Run() error {
 	err := pipeline.source.Start()
 
 	// pipeline has stopped, emit one last round of metrics and send the exit event
-	pipeline.emitMetrics()
+	pipeline.emitNodeMetadata(pipeline.fireMetrics)
+	pipeline.emitNodeMetadata(pipeline.saveState)
 	pipeline.source.pipe.Event <- events.ExitEvent(time.Now().Unix(), VERSION, endpoints)
 
 	// the source has exited, stop all the other nodes
@@ -124,12 +132,27 @@ func (pipeline *Pipeline) startErrorListener(cherr chan error) {
 
 func (pipeline *Pipeline) startMetricsGatherer() {
 	for _ = range pipeline.metricsTicker.C {
-		pipeline.emitMetrics()
+		pipeline.emitNodeMetadata(pipeline.fireMetrics)
 	}
 }
 
+func (pipeline *Pipeline) fireMetrics(node *Node) {
+	// do something with the node
+	pipeline.source.pipe.Event <- events.MetricsEvent(time.Now().Unix(), node.Path(), node.pipe.MessageCount)
+}
+
+func (pipeline *Pipeline) startSessionSaver() {
+	for _ = range pipeline.sessionTicker.C {
+		pipeline.emitNodeMetadata(pipeline.saveState)
+	}
+}
+
+func (pipeline *Pipeline) saveState(node *Node) {
+	pipeline.sessionStore.Save(node.Path(), node.pipe.LastKnownState)
+}
+
 // emit the metrics
-func (pipeline *Pipeline) emitMetrics() {
+func (pipeline *Pipeline) emitNodeMetadata(fn func(*Node)) {
 
 	frontier := make([]*Node, 1)
 	frontier[0] = pipeline.source
@@ -139,8 +162,7 @@ func (pipeline *Pipeline) emitMetrics() {
 		node := frontier[0]
 		frontier = frontier[1:]
 
-		// do something with the node
-		pipeline.source.pipe.Event <- events.MetricsEvent(time.Now().Unix(), node.Path(), node.pipe.MessageCount)
+		fn(node)
 
 		// add this nodes children to the frontier
 		for _, child := range node.Children {

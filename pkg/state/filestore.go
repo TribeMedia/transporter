@@ -21,12 +21,7 @@ type filestore struct {
 	key         string
 	filename    string
 	flushTicker *time.Ticker
-	states      map[string]*msgState
-}
-
-type msgState struct {
-	Id        string
-	Timestamp int64
+	states      map[string]*MsgState
 }
 
 func NewFilestore(key, filename string, interval time.Duration) SessionStore {
@@ -34,7 +29,7 @@ func NewFilestore(key, filename string, interval time.Duration) SessionStore {
 		key:         key,
 		filename:    filename,
 		flushTicker: time.NewTicker(interval),
-		states:      make(map[string]*msgState),
+		states:      make(map[string]*MsgState),
 	}
 	go filestore.startFlusher()
 	signal.Notify(chQuit, os.Interrupt, syscall.SIGTERM)
@@ -77,7 +72,7 @@ func (f *filestore) flushToDisk() error {
 }
 
 func (f *filestore) Save(path string, msg *message.Msg) error {
-	f.states[f.key+"-"+path] = &msgState{Id: msg.IdAsString(), Timestamp: msg.Timestamp}
+	f.states[f.key+"-"+path] = &MsgState{Id: msg.IdAsString(), Timestamp: msg.Timestamp}
 	return nil
 }
 
@@ -89,7 +84,7 @@ func (f *filestore) Select(path string) (string, int64, error) {
 		if err != nil {
 			return "", 0, err
 		}
-		states := make(map[string]*msgState)
+		states := make(map[string]*MsgState)
 		dec := gob.NewDecoder(fh)
 		err = dec.Decode(&states)
 		if err != nil {
